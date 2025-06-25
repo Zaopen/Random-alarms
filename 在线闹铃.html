@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>随机闹钟</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#3B82F6',
+            secondary: '#10B981',
+            accent: '#8B5CF6',
+            dark: '#1F2937',
+            light: '#F3F4F6'
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .glass {
+        background: rgba(255, 255, 255, 0.25);
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .shadow-soft {
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      }
+      .time-input::-webkit-inner-spin-button,
+      .time-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex flex-col items-center justify-start p-4 md:p-8">
+  <!-- 页面标题 -->
+  <header class="w-full max-w-3xl text-center mb-8">
+    <h1 class="text-[clamp(2rem,5vw,3rem)] font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent mb-2">随机闹钟</h1>
+    <p class="text-gray-600 text-lg">在设定的时间范围内随机提醒，帮助您养成定时习惯</p>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="w-full max-w-3xl flex flex-col items-center space-y-8">
+    <!-- 闹钟设置卡片 -->
+    <div class="w-full bg-white rounded-2xl shadow-soft p-6 md:p-8 transition-all duration-300 hover:shadow-lg">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-dark flex items-center">
+          <i class="fa fa-clock-o mr-3 text-primary"></i>闹钟设置
+        </h2>
+        <div id="status-indicator" class="hidden">
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+            <span class="w-2 h-2 mr-2 bg-green-500 rounded-full animate-pulse"></span>
+            闹钟运行中
+          </span>
+        </div>
+      </div>
+
+      <form id="alarm-form" class="space-y-6">
+        <!-- 时间范围设置 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label for="start-time" class="block text-sm font-medium text-gray-700 mb-2">开始时间</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fa fa-calendar-o text-gray-400"></i>
+              </div>
+              <input type="time" id="start-time" name="start-time" class="time-input block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" required>
+            </div>
+          </div>
+          <div>
+            <label for="end-time" class="block text-sm font-medium text-gray-700 mb-2">结束时间</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fa fa-calendar-o text-gray-400"></i>
+              </div>
+              <input type="time" id="end-time" name="end-time" class="time-input block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- 随机间隔设置 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label for="min-interval" class="block text-sm font-medium text-gray-700 mb-2">最小间隔 (分钟)</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fa fa-clock-o text-gray-400"></i>
+              </div>
+              <input type="number" id="min-interval" name="min-interval" min="1" max="120" value="5" class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" required>
+            </div>
+          </div>
+          <div>
+            <label for="max-interval" class="block text-sm font-medium text-gray-700 mb-2">最大间隔 (分钟)</label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fa fa-clock-o text-gray-400"></i>
+              </div>
+              <input type="number" id="max-interval" name="max-interval" min="1" max="120" value="30" class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- 提醒消息设置 -->
+        <div>
+          <label for="reminder-text" class="block text-sm font-medium text-gray-700 mb-2">提醒文字</label>
+          <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <i class="fa fa-comment text-gray-400"></i>
+            </div>
+            <input type="text" id="reminder-text" name="reminder-text" placeholder="例如：该休息一下了！" value="该休息一下了！" class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all" required>
+          </div>
+        </div>
+
+        <!-- 声音设置 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">提醒声音</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div class="sound-option relative">
+                <input type="radio" id="sound1" name="sound" value="chime" class="sr-only peer" checked>
+                <label for="sound1" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  <i class="fa fa-bell-o mr-2"></i>铃声
+                </label>
+              </div>
+              <div class="sound-option relative">
+                <input type="radio" id="sound2" name="sound" value="alarm" class="sr-only peer">
+                <label for="sound2" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  <i class="fa fa-volume-up mr-2"></i>警报
+                </label>
+              </div>
+              <div class="sound-option relative">
+                <input type="radio" id="sound3" name="sound" value="beep" class="sr-only peer">
+                <label for="sound3" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  <i class="fa fa-bullhorn mr-2"></i>蜂鸣
+                </label>
+              </div>
+              <div class="sound-option relative">
+                <input type="radio" id="sound4" name="sound" value="none" class="sr-only peer">
+                <label for="sound4" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  <i class="fa fa-volume-off mr-2"></i>静音
+                </label>
+              </div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">重复设置</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div class="repeat-option relative">
+                <input type="radio" id="once" name="repeat" value="once" class="sr-only peer" checked>
+                <label for="once" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  一次
+                </label>
+              </div>
+              <div class="repeat-option relative">
+                <input type="radio" id="daily" name="repeat" value="daily" class="sr-only peer">
+                <label for="daily" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  每天
+                </label>
+              </div>
+              <div class="repeat-option relative">
+                <input type="radio" id="weekdays" name="repeat" value="weekdays" class="sr-only peer">
+                <label for="weekdays" class="flex items-center justify-center w-full py-3 px-2 text-sm font-medium rounded-lg border border-gray-300 bg-white peer-checked:border-primary peer-checked:bg-primary/10 transition-all cursor-pointer">
+                  工作日
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 按钮区域 -->
+        <div class="flex flex-wrap gap-4 pt-2">
+          <button type="submit" id="start-alarm" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all transform hover:scale-[1.02] active:scale-[0.98]">
+            <i class="fa fa-play mr-2"></i>启动闹钟
+          </button>
+          <button type="button" id="stop-alarm" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-red-500 hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all transform hover:scale-[1.02] active:scale-[0.98]" disabled>
+            <i class="fa fa-stop mr-2"></i>停止闹钟
+          </button>
+          <button type="reset" class="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all">
+            <i class="fa fa-refresh mr-2"></i>重置设置
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- 下一次提醒信息 -->
+    <div id="next-alarm-info" class="w-full bg-white rounded-2xl shadow-soft p-6 md:p-8 hidden">
+      <h2 class="text-2xl font-bold text-dark mb-6 flex items-center">
+        <i class="fa fa-bell text-primary mr-3"></i>下一次提醒
+      </h2>
+      
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div class="flex-1">
+          <div class="bg-gray-50 rounded-xl p-4">
+            <div class="flex items-center justify-center">
+              <div id="next-time-display" class="text-[clamp(2.5rem,8vw,4rem)] font-bold text-primary">--:--</div>
+            </div>
+            <p class="text-center text-gray-500 mt-2">
+              <span id="time-until" class="font-medium">--</span> 后提醒
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex-1">
+          <div class="bg-gray-50 rounded-xl p-4 h-full">
+            <h3 class="text-lg font-medium text-gray-700 mb-3">提醒详情</h3>
+            <div class="space-y-3">
+              <div class="flex items-start">
+                <i class="fa fa-comment-o text-primary mt-1 mr-3"></i>
+                <div>
+                  <p class="text-sm text-gray-500">提醒文字</p>
+                  <p id="reminder-text-display" class="font-medium">该休息一下了！</p>
+                </div>
+              </div>
+              <div class="flex items-start">
+                <i class="fa fa-clock-o text-primary mt-1 mr-3"></i>
+                <div>
+                  <p class="text-sm text-gray-500">提醒范围</p>
+                  <p id="time-range-display" class="font-medium">--:-- 至 --:--</p>
+                </div>
+              </div>
+              <div class="flex items-start">
+                <i class="fa fa-random text-primary mt-1 mr-3"></i>
+                <div>
+                  <p class="text-sm text-gray-500">随机间隔</p>
+                  <p id="interval-display" class="font-medium">5-30 分钟</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 历史提醒记录 -->
+    <div id="history-section" class="w-full bg-white rounded-2xl shadow-soft p-6 md:p-8">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-2xl font-bold text-dark flex items-center">
+          <i class="fa fa-history text-primary mr-3"></i>提醒历史
+        </h2>
+        <div class="relative">
+          <button id="clear-history" class="text-gray-500 hover:text-red-500 transition-colors">
+            <i class="fa fa-trash-o mr-1"></i>清空历史
+          </button>
+        </div>
+      </div>
+      
+      <div id="history-list" class="divide-y divide-gray-200">
+        <div class="py-4 text-center text-gray-500">
+          <i class="fa fa-clock-o mr-2"></i>暂无提醒历史
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="w-full max-w-3xl mt-8 text-center text-gray-500 text-sm">
+    <p>© 2025 随机闹钟 | 保持专注，提高效率</p>
+  </footer>
+
+  <!-- 提醒弹窗 -->
+  <div id="notification-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+    <div class="absolute inset-0 bg-black bg-opacity-50 transition-opacity"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md transform transition-all">
+      <div class="p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-xl font-bold text-dark">时间到了！</h3>
+          <button id="close-notification" class="text-gray-400 hover:text-gray-500">
+            <i class="fa fa-times"></i>
+          </button>
+        </div>
+        <div class="flex items-center justify-center my-6">
+          <div class="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
+            <i class="fa fa-bell text-4xl text-primary animate-pulse"></i>
+          </div>
+        </div>
+        <p id="notification-text" class="text-center text-lg font-medium text-gray-800 mb-6">该休息一下了！</p>
+        <div class="flex justify-center">
+          <button id="snooze-button" class="mr-3 inline-flex items-center px-5 py-2.5 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all">
+            <i class="fa fa-clock-o mr-2"></i>稍后提醒 (5分钟)
+          </button>
+          <button id="dismiss-button" class="inline-flex items-center px-5 py-2.5 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-all">
+            <i class="fa fa-check mr-2"></i>知道了
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 音频资源
+    const sounds = {
+      chime: new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='),
+      alarm: new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='),
+      beep: new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=')
+    };
+
+    // 全局变量
+    let alarmTimer = null;
+    let nextAlarmTime = null;
+    let history = JSON.parse(localStorage.getItem('alarmHistory')) || [];
+    let isSnoozing = false;
+    let snoozeTimer = null;
+
+    // DOM 元素
+    const alarmForm = document.getElementById('alarm-form');
+    const startAlarmBtn = document.getElementById('start-alarm');
+    const stopAlarmBtn = document.getElementById('stop-alarm');
+    const nextAlarmInfo = document.getElementById('next-alarm-info');
+    const nextTimeDisplay = document.getElementById('next-time-display');
+    const timeUntilDisplay = document.getElementById('time-until');
+    const reminderTextDisplay = document.getElementById('reminder-text-display');
+    const timeRangeDisplay = document.getElementById('time-range-display');
+    const intervalDisplay = document.getElementById('interval-display');
+    const notificationModal = document.getElementById('notification-modal');
+    const notificationText = document.getElementById('notification-text');
+    const closeNotificationBtn = document.getElementById('close-notification');
+    const snoozeBtn = document.getElementById('snooze-button');
+    const dismissBtn = document.getElementById('dismiss-button');
+    const historyList = document.getElementById('history-list');
+    const clearHistoryBtn = document.getElementById('clear-history');
+    const statusIndicator = document.getElementById('status-indicator');
+
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+      // 加载历史记录
+      renderHistory();
+      
+      // 检查是否有未完成的闹钟
+      const savedAlarm = JSON.parse(localStorage.getItem('activeAlarm'));
+      if (savedAlarm && savedAlarm.nextAlarmTime) {
+        const timeLeft = new Date(savedAlarm.nextAlarmTime) - new Date();
+        if (timeLeft > 0) {
+          // 恢复闹钟
+          nextAlarmTime = new Date(savedAlarm.nextAlarmTime);
+          startAlarmBtn.disabled = true;
+          stopAlarmBtn.disabled = false;
+          nextAlarmInfo.classList.remove('hidden');
+          statusIndicator.classList.remove('hidden');
+          
+          updateNextAlarmDisplay();
+          startCountdown();
+        } else {
+          // 闹钟时间已过，清除保存的闹钟
+          localStorage.removeItem('activeAlarm');
+        }
+      }
+    });
+
+    // 表单提交事件
+    alarmForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      // 获取表单值
+      const startTime = document.getElementById('start-time').value;
+      const endTime = document.getElementById('end-time').value;
+      const minInterval = parseInt(document.getElementById('min-interval').value);
+      const maxInterval = parseInt(document.getElementById('max-interval').value);
+      const reminderText = document.getElementById('reminder-text').value;
+      const sound = document.querySelector('input[name="sound"]:checked').value;
+      const repeat = document.querySelector('input[name="repeat"]:checked').value;
+      
+      // 验证
+      if (!startTime || !endTime) {
+        alert('请设置开始时间和结束时间');
+        return;
+      }
+      
+      if (minInterval > maxInterval) {
+        alert('最小间隔不能大于最大间隔');
+        return;
+      }
+      
+      // 计算下一次提醒时间
+      const now = new Date();
+      const startParts = startTime.split(':');
+      const endParts = endTime.split(':');
+      
+      // 设置今天的开始和结束时间
+      const todayStart = new Date();
+      todayStart.setHours(parseInt(startParts[0]));
+      todayStart.setMinutes(parseInt(startParts[1]));
+      todayStart.setSeconds(0);
+      
+      const todayEnd = new Date();
+      todayEnd.setHours(parseInt(endParts[0]));
+      todayEnd.setMinutes(parseInt(endParts[1]));
+      todayEnd.setSeconds(0);
+      
+      // 如果今天的开始时间已过，设置为明天
+      if (todayStart < now) {
+        todayStart.setDate(todayStart.getDate() + 1);
+        todayEnd.setDate(todayEnd.getDate() + 1);
+      }
+      
+      // 如果今天的结束时间在开始时间之前，设置为明天
+      if (todayEnd <= todayStart) {
+        todayEnd.setDate(todayEnd.getDate() + 1);
+      }
+      
+      // 计算随机间隔（分钟）
+      const randomMinutes = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval;
+      
+      // 设置下一次提醒时间
+      nextAlarmTime = new Date(now.getTime() + randomMinutes * 60000);
+      
+      // 如果下一次提醒时间超出了今天的结束时间，设置为明天的开始时间加上随机间隔
+      if (nextAlarmTime > todayEnd) {
+        // 根据重复设置确定下一个有效日期
+        let nextValidDate = new Date(todayStart);
+        
+        if (repeat === 'weekdays') {
+          // 跳过周末
+          while ([0, 6].includes(nextValidDate.getDay())) {
+            nextValidDate.setDate(nextValidDate.getDate() + 1);
+          }
+        }
+        
+        // 在有效日期的开始时间基础上加上随机间隔
+        nextAlarmTime = new Date(nextValidDate.getTime() + randomMinutes * 60000);
+      }
+      
+      // 存储闹钟设置
+      const alarmSettings = {
+        startTime,
+        endTime,
+        minInterval,
+        maxInterval,
+        reminderText,
+        sound,
+        repeat,
+        nextAlarmTime: nextAlarmTime.toISOString()
+      };
+      
+      localStorage.setItem('activeAlarm', JSON.stringify(alarmSettings));
+      
+      // 更新UI
+      startAlarmBtn.disabled = true;
+      stopAlarmBtn.disabled = false;
+      nextAlarmInfo.classList.remove('hidden');
+      statusIndicator.classList.remove('hidden');
+      
+      // 更新显示
+      updateNextAlarmDisplay(alarmSettings);
+      
+      // 开始倒计时
+      startCountdown();
+      
+      // 添加到历史记录
+      addToHistory({
+        time: new Date().toISOString(),
+        action: '闹钟已设置',
+        details: `下次提醒: ${formatTime(nextAlarmTime)}`
+      });
+    });
+
+    // 停止闹钟
+    stopAlarmBtn.addEventListener('click', () => {
+      clearTimeout(alarmTimer);
+      if (snoozeTimer) clearTimeout(snoozeTimer);
+      
+      nextAlarmTime = null;
+      startAlarmBtn.disabled = false;
+      stopAlarmBtn.disabled = true;
+      nextAlarmInfo.classList.add('hidden');
+      statusIndicator.classList.add('hidden');
+      
+      localStorage.removeItem('activeAlarm');
+      
+      // 添加到历史记录
+      addToHistory({
+        time: new Date().toISOString(),
+        action: '闹钟已停止',
+        details: ''
+      });
+    });
+
+    // 关闭通知
+    closeNotificationBtn.addEventListener('click', () => {
+      closeNotification();
+    });
+
+    // 稍后提醒
+    snoozeBtn.addEventListener('click', () => {
+      closeNotification();
+      
+      // 5分钟后再次提醒
+      const snoozeMinutes = 5;
+      nextAlarmTime = new Date(new Date().getTime() + snoozeMinutes * 60000);
+      isSnoozing = true;
+      
+      // 更新UI
+      startAlarmBtn.disabled = true;
+      stopAlarmBtn.disabled = false;
+      nextAlarmInfo.classList.remove('hidden');
+      statusIndicator.classList.remove('hidden');
+      
+      updateNextAlarmDisplay();
+      startCountdown();
+      
+      // 添加到历史记录
+      addToHistory({
+        time: new Date().toISOString(),
+        action: '稍后提醒',
+        details: `将于 ${formatTime(nextAlarmTime)} 再次提醒`
+      });
+    });
+
+    // 忽略提醒
+    dismissBtn.addEventListener('click', () => {
+      closeNotification();
+      
+      // 如果是稍后提醒状态，停止稍后提醒
+      if (isSnoozing) {
+        isSnoozing = false;
+        clearTimeout(snoozeTimer);
+      }
+      
+      // 继续原闹钟流程
+      const activeAlarm = JSON.parse(localStorage.getItem('activeAlarm'));
+      if (activeAlarm) {
+        // 计算下一次提醒时间
+        const now = new Date();
+        const startParts = activeAlarm.startTime.split(':');
+        const endParts = activeAlarm.endTime.split(':');
+        
+        const todayStart = new Date();
+        todayStart.setHours(parseInt(startParts[0]));
+        todayStart.setMinutes(parseInt(startParts[1]));
+        todayStart.setSeconds(0);
+        
+        const todayEnd = new Date();
+        todayEnd.setHours(parseInt(endParts[0]));
+        todayEnd.setMinutes(parseInt(endParts[1]));
+        todayEnd.setSeconds(0);
+        
+        // 如果今天的开始时间已过，设置为明天
+        if (todayStart < now) {
+          todayStart.setDate(todayStart.getDate() + 1);
+          todayEnd.setDate(todayEnd.getDate() + 1);
+        }
+        
+        // 如果今天的结束时间在开始时间之前，设置为明天
+        if (todayEnd <= todayStart) {
+          todayEnd.setDate(todayEnd.getDate() + 1);
+        }
+        
+        // 计算随机间隔（分钟）
+        const randomMinutes = Math.floor(Math.random() * (activeAlarm.maxInterval - activeAlarm.minInterval + 1)) + activeAlarm.minInterval;
+        
+        // 设置下一次提醒时间
+        nextAlarmTime = new Date(now.getTime() + randomMinutes * 60000);
+        
+        // 如果下一次提醒时间超出了今天的结束时间，设置为明天的开始时间加上随机间隔
+        if (nextAlarmTime > todayEnd) {
+          // 根据重复设置确定下一个有效日期
+          let nextValidDate = new Date(todayStart);
+          
+          if (activeAlarm.repeat === 'weekdays') {
+            // 跳过周末
+            while ([0, 6].includes(nextValidDate.getDay())) {
+              nextValidDate.setDate(nextValidDate.getDate() + 1);
+            }
+          }
+          
+          // 在有效日期的开始时间基础上加上随机间隔
+          nextAlarmTime = new Date(nextValidDate.getTime() + randomMinutes * 60000);
+        }
+        
+        // 更新闹钟设置
+        activeAlarm.nextAlarmTime = nextAlarmTime.toISOString();
+        localStorage.setItem('activeAlarm', JSON.stringify(activeAlarm));
+        
+        updateNextAlarmDisplay(activeAlarm);
+        startCountdown();
+      } else {
+        // 没有活动闹钟，停止闹钟
+        stopAlarmBtn.click();
+      }
+      
+      // 添加到历史记录
+      addToHistory({
+        time: new Date().toISOString(),
+        action: '提醒已忽略',
+        details: ''
+      });
+    });
+
+    // 清空历史记录
+    clearHistoryBtn.addEventListener('click', () => {
+      if (confirm('确定要清空所有历史记录吗？')) {
+        history = [];
+        localStorage.setItem('alarmHistory', JSON.stringify(history));
+        renderHistory();
+      }
+    });
+
+    // 更新下一次提醒显示
+    function updateNextAlarmDisplay(alarmSettings = null) {
+      if (!alarmSettings) {
+        alarmSettings = JSON.parse(localStorage.getItem('activeAlarm'));
+      }
+      
+      if (!alarmSettings || !nextAlarmTime) return;
+      
+      nextTimeDisplay.textContent = formatTime(nextAlarmTime);
+      reminderTextDisplay.textContent = alarmSettings.reminderText;
+      notificationText.textContent = alarmSettings.reminderText;
+      
+      const startParts = alarmSettings.startTime.split(':');
+      const endParts = alarmSettings.endTime.split(':');
+      timeRangeDisplay.textContent = `${startParts[0]}:${startParts[1]} 至 ${endParts[0]}:${endParts[1]}`;
+      
+      intervalDisplay.textContent = `${alarmSettings.minInterval}-${alarmSettings.maxInterval} 分钟`;
+      
+      updateTimeUntil();
+    }
+
+    // 更新剩余时间显示
+    function updateTimeUntil() {
+      if (!nextAlarmTime) return;
+      
+      const now = new Date();
+      const diffMs = nextAlarmTime - now;
+      
+      if (diffMs <= 0) {
+        timeUntilDisplay.textContent = '现在';
+        return;
+      }
+      
+      const diffMinutes = Math.floor(diffMs / 60000);
+      const diffSeconds = Math.floor((diffMs % 60000) / 1000);
+      
+      if (diffMinutes > 0) {
+        timeUntilDisplay.textContent = `${diffMinutes} 分 ${diffSeconds} 秒`;
+      } else {
+        timeUntilDisplay.textContent = `${diffSeconds} 秒`;
+      }
+    }
+
+    // 开始倒计时
+    function startCountdown() {
+      clearTimeout(alarmTimer);
+      
+      const now = new Date();
+      const timeLeft = nextAlarmTime - now;
+      
+      if (timeLeft <= 0) {
+        triggerAlarm();
+        return;
+      }
+      
+      alarmTimer = setTimeout(triggerAlarm, timeLeft);
+      
+      // 每秒更新剩余时间显示
+      const countdownInterval = setInterval(() => {
+        updateTimeUntil();
+        
+        const now = new Date();
+        if (now >= nextAlarmTime) {
+          clearInterval(countdownInterval);
+        }
+      }, 1000);
+    }
+
+    // 触发闹钟
+    function triggerAlarm() {
+      const activeAlarm = JSON.parse(localStorage.getItem('activeAlarm'));
+      
+      // 播放声音
+      if (activeAlarm && activeAlarm.sound !== 'none') {
+        if (sounds[activeAlarm.sound]) {
+          sounds[activeAlarm.sound].play().catch(e => console.log('播放声音失败:', e));
+        }
+      }
+      
+      // 显示通知
+      notificationModal.classList.remove('hidden');
+      
+      // 添加到历史记录
+      addToHistory({
+        time: new Date().toISOString(),
+        action: '提醒已触发',
+        details: activeAlarm ? activeAlarm.reminderText : '自定义提醒'
+      });
+      
+      // 如果不是稍后提醒状态，计算下一次提醒时间
+      if (!isSnoozing && activeAlarm) {
+        // 计算下一次提醒时间
+        const now = new Date();
+        const startParts = activeAlarm.startTime.split(':');
+        const endParts = activeAlarm.endTime.split(':');
+        
+        const todayStart = new Date();
+        todayStart.setHours(parseInt(startParts[0]));
+        todayStart.setMinutes(parseInt(startParts[1]));
+        todayStart.setSeconds(0);
+        
+        const todayEnd = new Date();
+        todayEnd.setHours(parseInt(endParts[0]));
+        todayEnd.setMinutes(parseInt(endParts[1]));
+        todayEnd.setSeconds(0);
+        
+        // 如果今天的开始时间已过，设置为明天
+        if (todayStart < now) {
+          todayStart.setDate(todayStart.getDate() + 1);
+          todayEnd.setDate(todayEnd.getDate() + 1);
+        }
+        
+        // 如果今天的结束时间在开始时间之前，设置为明天
+        if (todayEnd <= todayStart) {
+          todayEnd.setDate(todayEnd.getDate() + 1);
+        }
+        
+        // 计算随机间隔（分钟）
+        const randomMinutes = Math.floor(Math.random() * (activeAlarm.maxInterval - activeAlarm.minInterval + 1)) + activeAlarm.minInterval;
+        
+        // 设置下一次提醒时间
+        nextAlarmTime = new Date(now.getTime() + randomMinutes * 60000);
+        
+        // 如果下一次提醒时间超出了今天的结束时间，设置为明天的开始时间加上随机间隔
+        if (nextAlarmTime > todayEnd) {
+          // 根据重复设置确定下一个有效日期
+          let nextValidDate = new Date(todayStart);
+          
+          if (activeAlarm.repeat === 'weekdays') {
+            // 跳过周末
+            while ([0, 6].includes(nextValidDate.getDay())) {
+              nextValidDate.setDate(nextValidDate.getDate() + 1);
+            }
+          }
+          
+          // 在有效日期的开始时间基础上加上随机间隔
+          nextAlarmTime = new Date(nextValidDate.getTime() + randomMinutes * 60000);
+        }
+        
+        // 更新闹钟设置
+        activeAlarm.nextAlarmTime = nextAlarmTime.toISOString();
+        localStorage.setItem('activeAlarm', JSON.stringify(activeAlarm));
+        
+        // 更新显示
+        updateNextAlarmDisplay(activeAlarm);
+      } else {
+        // 如果是稍后提醒状态，重置状态
+        isSnoozing = false;
+      }
+    }
+
+    // 关闭通知
+    function closeNotification() {
+      notificationModal.classList.add('hidden');
+      
+      // 停止声音
+      Object.values(sounds).forEach(sound => sound.pause());
+    }
+
+    // 添加到历史记录
+    function addToHistory(entry) {
+      history.unshift(entry);
+      
+      // 限制历史记录数量
+      if (history.length > 50) {
+        history = history.slice(0, 50);
+      }
+      
+      localStorage.setItem('alarmHistory', JSON.stringify(history));
+      renderHistory();
+    }
+
+    // 渲染历史记录
+    function renderHistory() {
+      if (history.length === 0) {
+        historyList.innerHTML = `
+          <div class="py-4 text-center text-gray-500">
+            <i class="fa fa-clock-o mr-2"></i>暂无提醒历史
+          </div>
+        `;
+        return;
+      }
+      
+      historyList.innerHTML = '';
+      
+      history.forEach((entry, index) => {
+        const time = new Date(entry.time);
+        const formattedTime = time.toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+        
+        const historyItem = document.createElement('div');
+        historyItem.className = 'py-4';
+        historyItem.innerHTML = `
+          <div class="flex items-start">
+            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center mr-4">
+              <i class="fa fa-bell-o text-primary"></i>
+            </div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between">
+                <h4 class="text-sm font-medium text-gray-900">${entry.action}</h4>
+                <span class="text-xs text-gray-500">${formattedTime}</span>
+              </div>
+              ${entry.details ? `<p class="mt-1 text-sm text-gray-600">${entry.details}</p>` : ''}
+            </div>
+          </div>
+        `;
+        
+        historyList.appendChild(historyItem);
+        
+        // 添加分隔线，最后一项不添加
+        if (index < history.length - 1) {
+          const divider = document.createElement('div');
+          divider.className = 'border-t border-gray-200';
+          historyList.appendChild(divider);
+        }
+      });
+    }
+
+    // 格式化时间
+    function formatTime(date) {
+      return date.toLocaleTimeString('zh-CN', {
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+  </script>
+</body>
+</html>
+    
